@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Fragile vs Decoupled Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Monolith 1 (working)</h2>
+    <section>
+        <ul id="monoList1"></ul>
+        <input id="monoInput1" placeholder="New todo" />
+        <button onclick="monoAdd1()">Add</button>
+    </section>
+
+    <h2>Monolith 2 (broken)</h2>
+    <section>
+        <ul id="monoList2"></ul>
+        <input id="monoInput2" placeholder="New todo" />
+        <button onclick="monoAdd2()">Add</button>
+    </section>
+
+    <h2>Decoupled 1 (base)</h2>
+    <section>
+        <ul id="decList1"></ul>
+        <input id="decInput1" placeholder="New todo" />
+        <button onclick="decAdd1()">Add</button>
+    </section>
+
+    <h2>Decoupled 2 (UI change only, backend unaffected)</h2>
+    <section>
+        <ul id="decList2"></ul>
+        <input id="decInput2" placeholder="New todo" />
+        <button onclick="decAdd2()">Add (UI change)</button>
+    </section>
+
+    <script>
+        /* ===== Monolith 1 ===== */
+        let monoTodos1 = [];
+        function renderMono1() {
+            const list = document.getElementById('monoList1');
+            list.innerHTML = '';
+            monoTodos1.forEach((t, i) => {
+                const li = document.createElement('li');
+                li.textContent = t;
+                li.onclick = () => { monoTodos1.splice(i, 1); renderMono1(); };
+                list.appendChild(li);
+            });
+        }
+        function monoAdd1() {
+            const val = document.getElementById('monoInput1').value;
+            if (val) monoTodos1.push(val);
+            renderMono1();
+        }
+        renderMono1();
+
+        /* ===== Monolith 2 (broken) ===== */
+        let monoTodos2 = [];
+        function renderMono2() {
+            const list = document.getElementById('monoList2');
+            list.innerHTML = '';
+            monoTodos2.forEach((t, i) => {
+                const li = document.createElement('li');
+                li.textContent = t;
+                li.onclick = () => { monoTodos2.splice(i, 1); renderMono2(); };
+                list.appendChild(li);
+            });
+        }
+        // BUG: typo in add function
+        function monoAdd2() {
+            const val = document.getElementById('monoInput2').value;
+            if (val) todos2.push(val); // <-- BUG todos2 should be monoTodos2
+            renderMono2();
+        }
+        renderMono2();
+
+        /* ===== Shared server for decoupled demos ===== */
+        let serverTodos = [];
+        function fetchTodos() { return [...serverTodos]; }
+        function serverAdd(todo) { serverTodos.push(todo); return fetchTodos(); }
+        function serverDelete(index) { serverTodos.splice(index, 1); return fetchTodos(); }
+
+        /* ===== Decoupled 1 ===== */
+        function renderDec1() {
+            const list = document.getElementById('decList1');
+            list.innerHTML = '';
+            fetchTodos().forEach((t, i) => {
+                const li = document.createElement('li');
+                li.textContent = t;
+                li.onclick = () => { serverDelete(i); renderDec1(); renderDec2(); };
+                list.appendChild(li);
+            });
+        }
+        function decAdd1() {
+            const val = document.getElementById('decInput1').value;
+            if (val) serverAdd(val);
+            renderDec1();
+            renderDec2();
+        }
+        renderDec1();
+
+        /* ===== Decoupled 2 (UI change only) ===== */
+        function renderDec2() {
+            const list = document.getElementById('decList2');
+            list.innerHTML = '';
+            fetchTodos().forEach((t, i) => {
+                const li = document.createElement('li');
+                li.textContent = t;
+                li.style.color = "blue"; // UI tweak only
+                li.onclick = () => { serverDelete(i); renderDec1(); renderDec2(); };
+                list.appendChild(li);
+            });
+        }
+        function decAdd2() {
+            const val = document.getElementById('decInput2').value;
+            if (val) serverAdd(val);
+            // temporary UI feedback
+            document.body.style.backgroundColor = "#f0f8ff";
+            setTimeout(() => document.body.style.backgroundColor = "white", 300);
+            renderDec2();
+            renderDec1();
+        }
+        renderDec2();
+    </script>
+
+</body>
+
+</html>
